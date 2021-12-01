@@ -5,16 +5,10 @@ const INPUT: &str = include_str!("day1.txt");
 fn main() -> Result<()> {
     let depths = parse_input()?;
 
-    let increases: u64 = (1..depths.len())
-        .map(|index| {
-            if depths[index] > depths[index - 1] {
-                1
-            } else {
-                0
-            }
-        })
-        .sum();
-    dbg!(increases);
+    let depth_increases = (1..depths.len())
+        .filter(|&index| depths[index] > depths[index - 1])
+        .count();
+    dbg!(depth_increases);
 
     Ok(())
 }
