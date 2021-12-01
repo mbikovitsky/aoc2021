@@ -1,7 +1,7 @@
 use anyhow::Result;
 use itertools::Itertools;
 
-const INPUT: &str = include_str!("day1.txt");
+const INPUT: &str = include_str!("input.txt");
 
 fn main() -> Result<()> {
     let depths = parse_input()?;
