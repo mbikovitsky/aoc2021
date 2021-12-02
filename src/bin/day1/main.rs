@@ -1,5 +1,4 @@
 use anyhow::Result;
-use itertools::Itertools;
 
 const INPUT: &str = include_str!("input.txt");
 
@@ -11,12 +10,13 @@ fn main() -> Result<()> {
         .count();
     dbg!(depth_increases);
 
-    let window_sum_increases = depths
-        .iter()
-        .tuple_windows()
-        .map(|window: (_, _, _)| window.0 + window.1 + window.2)
-        .tuple_windows()
-        .filter(|sums: &(_, _)| sums.1 > sums.0)
+    // A B C D E F G
+    // A <-> D
+    // B <-> E
+    // C <-> F
+
+    let window_sum_increases = (3..depths.len())
+        .filter(|&index| depths[index] > depths[index - 3])
         .count();
     dbg!(window_sum_increases);
 
