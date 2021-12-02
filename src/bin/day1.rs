@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-const INPUT: &str = include_str!("input.txt");
+use aoc2021::util::input_lines;
 
 fn main() -> Result<()> {
     let depths = parse_input()?;
@@ -24,7 +24,7 @@ fn main() -> Result<()> {
 }
 
 fn parse_input() -> Result<Vec<u32>> {
-    let result: Result<Vec<_>> = INPUT.lines().map(|line| Ok(line.parse()?)).collect();
+    let result: Result<Vec<_>> = input_lines()?.map(|line| Ok(line?.parse()?)).collect();
     let result = result?;
     Ok(result)
 }
