@@ -5,24 +5,7 @@ use aoc2021::util::input_lines;
 fn main() -> Result<()> {
     let numbers = parse_input()?;
 
-    // Assume that the leading digit is not 0
-    let digits = count_binary_digits(*numbers.iter().max().unwrap());
-
-    let ones = count_ones(&numbers);
-    let ones = &ones[0..digits as usize];
-
-    let mut gamma_rate = 0u16;
-    for count in ones.iter().rev().copied() {
-        gamma_rate <<= 1;
-        gamma_rate |= (count > numbers.len() / 2) as u16;
-    }
-    dbg!(gamma_rate);
-
-    let epsilon_rate = (!gamma_rate) & ((1 << digits) - 1);
-    dbg!(epsilon_rate);
-
-    let power_consumption = gamma_rate as u32 * epsilon_rate as u32;
-    dbg!(power_consumption);
+    power_consumption(&mut numbers.clone());
 
     Ok(())
 }
@@ -36,22 +19,29 @@ fn parse_input() -> Result<Vec<u16>> {
         .collect()
 }
 
-fn count_ones(numbers: &[u16]) -> [usize; u16::BITS as usize] {
-    let mut counters = [0usize; u16::BITS as usize];
-
-    for number in numbers {
-        let mut temp = *number;
-        let mut digit = 0;
-        while temp > 0 {
-            counters[digit] += (temp & 1) as usize;
-            temp >>= 1;
-            digit += 1;
-        }
-    }
-
-    counters
-}
-
 fn count_binary_digits(number: u16) -> u32 {
     u16::BITS - number.leading_zeros()
+}
+
+fn power_consumption(numbers: &mut [u16]) {
+    // Assume that the leading digit in the original input is not 0
+    let digits = count_binary_digits(*numbers.iter().max().unwrap());
+
+    let mut gamma_rate = 0u16;
+    for digit in 1..digits + 1 {
+        let mask = 1 << (digits - digit);
+
+        let (_, &mut median, _) =
+            numbers.select_nth_unstable_by_key((numbers.len() - 1) / 2, |&number| number & mask);
+
+        gamma_rate <<= 1;
+        gamma_rate |= ((median & mask) != 0) as u16;
+    }
+    dbg!(gamma_rate);
+
+    let epsilon_rate = (!gamma_rate) & ((1 << digits) - 1);
+    dbg!(epsilon_rate);
+
+    let power_consumption = gamma_rate as u32 * epsilon_rate as u32;
+    dbg!(power_consumption);
 }
