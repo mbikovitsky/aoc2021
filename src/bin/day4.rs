@@ -1,74 +1,9 @@
 use anyhow::{Context, Result};
 
-use aoc2021::util::input_lines;
-
-const BINGO_ROWS: usize = 5;
-const BINGO_COLS: usize = 5;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Board {
-    numbers: [u32; BINGO_ROWS * BINGO_COLS],
-    marked: [bool; BINGO_ROWS * BINGO_COLS],
-}
-
-impl Board {
-    fn mark_number(&self, number: u32) -> Board {
-        let mut new_board = *self;
-
-        for index in 0..new_board.numbers.len() {
-            if new_board.numbers[index] == number {
-                new_board.marked[index] = true;
-            }
-        }
-
-        new_board
-    }
-
-    fn is_marked(&self, row: usize, col: usize) -> bool {
-        assert!(row < BINGO_ROWS);
-        assert!(col < BINGO_COLS);
-
-        self.marked[row * BINGO_ROWS + col]
-    }
-
-    fn is_winning(&self) -> bool {
-        // Check rows
-        for row in 0..BINGO_ROWS {
-            if self.marked[row * BINGO_ROWS..row * BINGO_ROWS + BINGO_COLS] == [true; BINGO_COLS] {
-                return true;
-            }
-        }
-
-        // Check columns
-        for col in 0..BINGO_COLS {
-            if (0..BINGO_ROWS).all(|row| self.is_marked(row, col)) {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    fn sum_unmarked(&self) -> u32 {
-        self.marked
-            .iter()
-            .enumerate()
-            .filter_map(|(index, &marked)| {
-                if marked {
-                    None
-                } else {
-                    Some(self.numbers[index])
-                }
-            })
-            .sum()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Game {
-    numbers: Vec<u32>,
-    boards: Vec<Board>,
-}
+use aoc2021::{
+    bingo::{Board, Game},
+    util::input_lines,
+};
 
 fn main() -> Result<()> {
     let game = parse_input()?;
@@ -127,10 +62,7 @@ fn parse_input() -> Result<Game> {
         let numbers = numbers?;
         assert_eq!(numbers.len(), 25);
 
-        let board = Board {
-            numbers: numbers.try_into().unwrap(),
-            marked: Default::default(),
-        };
+        let board = Board::new(&numbers.try_into().unwrap());
 
         boards.push(board);
     }
