@@ -8,8 +8,11 @@ use aoc2021::{
 fn main() -> Result<()> {
     let game = parse_input()?;
 
-    let score = find_first_winning_board_score(game).unwrap();
-    dbg!(score);
+    let first_score = find_first_winning_board_score(game.clone()).unwrap();
+    dbg!(first_score);
+
+    let last_score = find_last_winning_board_score(game).unwrap();
+    dbg!(last_score);
 
     Ok(())
 }
@@ -25,6 +28,25 @@ fn find_first_winning_board_score(mut game: Game) -> Option<u32> {
     }
 
     None
+}
+
+fn find_last_winning_board_score(mut game: Game) -> Option<u32> {
+    let mut last_winning_board_score = None;
+
+    for &number in &game.numbers {
+        for board in &mut game.boards {
+            if board.is_winning() {
+                continue;
+            }
+
+            *board = board.mark_number(number);
+            if board.is_winning() {
+                last_winning_board_score = Some(board.sum_unmarked() * number);
+            }
+        }
+    }
+
+    last_winning_board_score
 }
 
 fn parse_input() -> Result<Game> {
