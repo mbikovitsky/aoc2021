@@ -2,7 +2,7 @@ use std::{
     env,
     ffi::OsStr,
     fs::File,
-    io::{self, BufRead, BufReader},
+    io::{BufRead, BufReader},
     path::PathBuf,
 };
 
@@ -33,6 +33,6 @@ pub fn input_file() -> Result<File> {
     Ok(File::open(input_filename)?)
 }
 
-pub fn input_lines() -> Result<impl Iterator<Item = io::Result<String>>> {
-    Ok(BufReader::new(input_file()?).lines())
+pub fn input_lines() -> Result<impl Iterator<Item = Result<String>>> {
+    Ok(BufReader::new(input_file()?).lines().map(|line| Ok(line?)))
 }
