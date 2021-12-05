@@ -124,36 +124,32 @@ impl Line {
     }
 
     pub fn points(&self) -> impl Iterator<Item = Point> {
-        if self.is_horizontal() {
-            if self.start.x <= self.end.x {
-                LinePointsIterator {
-                    current: Some(self.start),
-                    step: Vector { x: 1, y: 0 },
-                    end: self.end,
-                }
-            } else {
-                LinePointsIterator {
-                    current: Some(self.start),
-                    step: Vector { x: -1, y: 0 },
-                    end: self.end,
-                }
-            }
-        } else if self.is_vertical() {
-            if self.start.y <= self.end.y {
-                LinePointsIterator {
-                    current: Some(self.start),
-                    step: Vector { x: 0, y: 1 },
-                    end: self.end,
-                }
-            } else {
-                LinePointsIterator {
-                    current: Some(self.start),
-                    step: Vector { x: 0, y: -1 },
-                    end: self.end,
-                }
-            }
+        if !(self.is_horizontal() || self.is_vertical() || self.is_diagonal()) {
+            todo!("Only horizontal, vertical, and 45-degree diagonal lines are implemented")
+        }
+
+        let dx = if self.start.x < self.end.x {
+            1
+        } else if self.start.x > self.end.x {
+            -1
         } else {
-            todo!("Only horizontal and vertical lines are implemented")
+            0
+        };
+
+        let dy = if self.start.y < self.end.y {
+            1
+        } else if self.start.y > self.end.y {
+            -1
+        } else {
+            0
+        };
+
+        let step = Vector { x: dx, y: dy };
+
+        LinePointsIterator {
+            current: Some(self.start),
+            step,
+            end: self.end,
         }
     }
 }
