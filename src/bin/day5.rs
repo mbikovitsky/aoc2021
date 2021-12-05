@@ -10,7 +10,7 @@ fn main() -> Result<()> {
     let overlapping_points_horizontal_vertical = count_overlapping_points(
         lines
             .iter()
-            .filter(|line| line.horizontal() || line.vertical()),
+            .filter(|line| line.is_horizontal() || line.is_vertical()),
     );
     dbg!(overlapping_points_horizontal_vertical);
 
