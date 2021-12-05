@@ -14,6 +14,9 @@ fn main() -> Result<()> {
     );
     dbg!(overlapping_points_horizontal_vertical);
 
+    let overlapping_points = count_overlapping_points(&lines);
+    dbg!(overlapping_points);
+
     Ok(())
 }
 
