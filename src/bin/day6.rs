@@ -17,20 +17,23 @@ fn main() -> Result<()> {
 }
 
 fn simulate_lifetime(fish: &[u8], days: u32) -> usize {
-    if fish.is_empty() {
-        return 0;
-    }
+    fish.iter()
+        .map(|fish| population_by_day(*fish, days).last().unwrap().1)
+        .sum()
+}
 
-    let mut heap = BinaryHeap::with_capacity(fish.len());
-    for fish in fish {
-        heap.push(Reverse(*fish));
-    }
+fn population_by_day(initial_counter: u8, days: u32) -> Vec<(u32, usize)> {
+    let mut population = vec![];
+
+    let mut heap = BinaryHeap::from([Reverse(initial_counter)]);
 
     let mut passed_days: u32 = 0;
     loop {
+        population.push((passed_days, heap.len()));
+
         let days_to_skip = heap.peek().unwrap().0;
         if passed_days.saturating_add(days_to_skip.into()) >= days {
-            return heap.len();
+            return population;
         }
 
         let current_state = heap.into_vec();
