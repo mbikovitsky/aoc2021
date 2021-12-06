@@ -22,35 +22,26 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn calculate_population(fish: &[u8], days: u32) -> usize {
-    let mut cache = HashMap::new();
-    fish.iter()
-        .map(|fish| calculate_population_from_one(*fish, days, &mut cache))
-        .sum()
-}
+fn calculate_population(fish: &[u8], days: u32) -> u64 {
+    let mut cache = vec![0; days.try_into().unwrap()];
 
-fn calculate_population_from_one(
-    initial_counter: u8,
-    days: u32,
-    cache: &mut HashMap<(u8, u32), usize>,
-) -> usize {
-    if let Some(population) = cache.get(&(initial_counter, days)) {
-        return *population;
+    fn lookup(cache: &[u64], fish: u8, days: u32) -> u64 {
+        let fish: u32 = fish.into();
+
+        if days <= fish.into() {
+            return 1;
+        }
+
+        let index: usize = (days - fish - 1).try_into().unwrap();
+        cache[index]
     }
 
-    if days <= initial_counter.into() {
-        cache.insert((initial_counter, days), 1);
-        return 1;
+    for day in 1..=days {
+        let index: usize = (day - 1).try_into().unwrap();
+        cache[index] = lookup(&cache, 6, day - 1) + lookup(&cache, 8, day - 1);
     }
 
-    let remainder = days - initial_counter as u32 - 1;
-
-    let pop_from_original_fish = calculate_population_from_one(6, remainder, cache);
-    let pop_from_new_fish = calculate_population_from_one(8, remainder, cache);
-    let total = pop_from_original_fish + pop_from_new_fish;
-
-    cache.insert((initial_counter, days), total);
-    total
+    fish.iter().map(|fish| lookup(&cache, *fish, days)).sum()
 }
 
 fn parse_input() -> Result<Vec<u8>> {
