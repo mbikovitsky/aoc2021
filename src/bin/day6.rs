@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 
 use aoc2021::util::input_lines;
