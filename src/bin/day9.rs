@@ -30,6 +30,10 @@ impl HeightMap {
         self.data[pos.row * self.width() + pos.col]
     }
 
+    fn all_points(&self) -> impl Iterator<Item = Position> + '_ {
+        (0..self.height()).flat_map(|row| (0..self.width()).map(move |col| Position { row, col }))
+    }
+
     fn neighbours(&self, pos: &Position) -> impl Iterator<Item = Position> {
         let pos = *pos;
 
@@ -48,16 +52,7 @@ impl HeightMap {
     }
 
     fn low_points(&self) -> impl Iterator<Item = Position> + '_ {
-        (0..self.width()).flat_map(move |row| {
-            (0..self.height()).filter_map(move |col| {
-                let pos = Position { row, col };
-                if self.is_low_point(&pos) {
-                    Some(pos)
-                } else {
-                    None
-                }
-            })
-        })
+        self.all_points().filter(|point| self.is_low_point(point))
     }
 
     fn is_low_point(&self, pos: &Position) -> bool {
