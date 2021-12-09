@@ -2,6 +2,12 @@ use anyhow::{Context, Result};
 
 use aoc2021::util::input_lines;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct Position {
+    row: usize,
+    col: usize,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct HeightMap {
     data: Vec<u8>,
@@ -17,42 +23,36 @@ impl HeightMap {
         self.data.len() / self.width()
     }
 
-    fn get(&self, row: usize, col: usize) -> u8 {
-        assert!(row < self.width());
-        assert!(col < self.height());
+    fn get(&self, pos: &Position) -> u8 {
+        assert!(pos.row < self.width());
+        assert!(pos.col < self.height());
 
-        self.data[row * self.width() + col]
+        self.data[pos.row * self.width() + pos.col]
     }
 
-    fn get_mut(&mut self, row: usize, col: usize) -> &mut u8 {
-        assert!(row < self.width());
-        assert!(col < self.height());
+    fn neighbours(&self, pos: &Position) -> impl Iterator<Item = Position> {
+        let pos = *pos;
 
-        let index = row * self.width() + col;
+        assert!(pos.row < self.width());
+        assert!(pos.col < self.height());
 
-        &mut self.data[index]
-    }
+        let min_row = pos.row.saturating_sub(1);
+        let max_row = (pos.row + 1).min(self.height() - 1);
 
-    fn neighbours(&self, row: usize, col: usize) -> impl Iterator<Item = (usize, usize)> {
-        assert!(row < self.width());
-        assert!(col < self.height());
-
-        let min_row = row.saturating_sub(1);
-        let max_row = (row + 1).min(self.height() - 1);
-
-        let min_col = col.saturating_sub(1);
-        let max_col = (col + 1).min(self.width() - 1);
+        let min_col = pos.col.saturating_sub(1);
+        let max_col = (pos.col + 1).min(self.width() - 1);
 
         (min_row..=max_row)
-            .flat_map(move |row| (min_col..=max_col).map(move |col| (row, col)))
-            .filter(move |(y, x)| !(*y == row && *x == col))
+            .flat_map(move |row| (min_col..=max_col).map(move |col| Position { row, col }))
+            .filter(move |neighbour| neighbour != &pos)
     }
 
-    fn low_points(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
+    fn low_points(&self) -> impl Iterator<Item = Position> + '_ {
         (0..self.width()).flat_map(move |row| {
             (0..self.height()).filter_map(move |col| {
-                if self.is_low_point(row, col) {
-                    Some((row, col))
+                let pos = Position { row, col };
+                if self.is_low_point(&pos) {
+                    Some(pos)
                 } else {
                     None
                 }
@@ -60,18 +60,18 @@ impl HeightMap {
         })
     }
 
-    fn is_low_point(&self, row: usize, col: usize) -> bool {
-        assert!(row < self.width());
-        assert!(col < self.height());
+    fn is_low_point(&self, pos: &Position) -> bool {
+        assert!(pos.row < self.width());
+        assert!(pos.col < self.height());
 
-        self.neighbours(row, col)
-            .all(|neighbour| self.get(neighbour.0, neighbour.1) > self.get(row, col))
+        self.neighbours(pos)
+            .all(|neighbour| self.get(&neighbour) > self.get(pos))
     }
 
-    fn risk_level(&self, row: usize, col: usize) -> u16 {
-        assert!(self.is_low_point(row, col));
+    fn risk_level(&self, pos: &Position) -> u16 {
+        assert!(self.is_low_point(pos));
 
-        let height: u16 = self.get(row, col).into();
+        let height: u16 = self.get(pos).into();
         height + 1
     }
 }
@@ -81,7 +81,7 @@ fn main() -> Result<()> {
 
     let risk_sum: u32 = map
         .low_points()
-        .map(|point| map.risk_level(point.0, point.1) as u32)
+        .map(|point| map.risk_level(&point) as u32)
         .sum();
     dbg!(risk_sum);
 
