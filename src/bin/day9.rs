@@ -1,4 +1,10 @@
+use std::{
+    cmp::Reverse,
+    collections::{HashMap, HashSet},
+};
+
 use anyhow::{Context, Result};
+use itertools::Itertools;
 
 use aoc2021::util::input_lines;
 
@@ -57,6 +63,18 @@ impl HeightMap {
         up_down.chain(left_right)
     }
 
+    fn gradient_direction(&self, pos: &Position) -> Position {
+        let neighbour = self
+            .neighbours(pos)
+            .min_by_key(|neighbour| self.get(neighbour))
+            .unwrap_or(*pos);
+        if self.get(&neighbour) <= self.get(pos) {
+            neighbour
+        } else {
+            *pos
+        }
+    }
+
     fn low_points(&self) -> impl Iterator<Item = Position> + '_ {
         self.all_points().filter(|point| self.is_low_point(point))
     }
@@ -75,6 +93,41 @@ impl HeightMap {
         let height: u16 = self.get(pos).into();
         height + 1
     }
+
+    fn basins(&self) -> HashMap<Position, HashSet<Position>> {
+        let mut result = HashMap::new();
+
+        for low_point in self.low_points() {
+            result.insert(low_point, HashSet::new());
+        }
+
+        let mut cache = HashMap::new();
+
+        for point in self.all_points() {
+            if self.get(&point) == 9 {
+                continue;
+            }
+
+            let mut path = vec![point];
+            let mut current = point;
+            while !result.contains_key(&current) {
+                if let Some(low_point) = cache.get(&current) {
+                    current = *low_point;
+                } else {
+                    current = self.gradient_direction(&current);
+                }
+                path.push(current);
+            }
+
+            result.get_mut(&current).unwrap().extend(&path);
+
+            for step in path {
+                cache.insert(step, current);
+            }
+        }
+
+        result
+    }
 }
 
 fn main() -> Result<()> {
@@ -85,6 +138,15 @@ fn main() -> Result<()> {
         .map(|point| map.risk_level(&point) as u32)
         .sum();
     dbg!(risk_sum);
+
+    let basins = map.basins();
+    let basin_sizes: Vec<_> = basins
+        .into_values()
+        .map(|basin| basin.len())
+        .sorted_unstable_by_key(|len| Reverse(*len))
+        .collect();
+    let size_product: usize = basin_sizes[0..3].iter().product();
+    dbg!(size_product);
 
     Ok(())
 }
