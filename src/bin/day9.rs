@@ -24,8 +24,8 @@ impl HeightMap {
     }
 
     fn get(&self, pos: &Position) -> u8 {
-        assert!(pos.row < self.width());
-        assert!(pos.col < self.height());
+        assert!(pos.row < self.height());
+        assert!(pos.col < self.width());
 
         self.data[pos.row * self.width() + pos.col]
     }
@@ -37,18 +37,24 @@ impl HeightMap {
     fn neighbours(&self, pos: &Position) -> impl Iterator<Item = Position> {
         let pos = *pos;
 
-        assert!(pos.row < self.width());
-        assert!(pos.col < self.height());
+        assert!(pos.row < self.height());
+        assert!(pos.col < self.width());
 
         let min_row = pos.row.saturating_sub(1);
         let max_row = (pos.row + 1).min(self.height() - 1);
 
+        let up_down = (min_row..=max_row)
+            .filter(move |row| *row != pos.row)
+            .map(move |row| Position { row, col: pos.col });
+
         let min_col = pos.col.saturating_sub(1);
         let max_col = (pos.col + 1).min(self.width() - 1);
 
-        (min_row..=max_row)
-            .flat_map(move |row| (min_col..=max_col).map(move |col| Position { row, col }))
-            .filter(move |neighbour| neighbour != &pos)
+        let left_right = (min_col..=max_col)
+            .filter(move |col| *col != pos.col)
+            .map(move |col| Position { col, row: pos.row });
+
+        up_down.chain(left_right)
     }
 
     fn low_points(&self) -> impl Iterator<Item = Position> + '_ {
@@ -56,8 +62,8 @@ impl HeightMap {
     }
 
     fn is_low_point(&self, pos: &Position) -> bool {
-        assert!(pos.row < self.width());
-        assert!(pos.col < self.height());
+        assert!(pos.row < self.height());
+        assert!(pos.col < self.width());
 
         self.neighbours(pos)
             .all(|neighbour| self.get(&neighbour) > self.get(pos))
