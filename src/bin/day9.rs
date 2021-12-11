@@ -6,69 +6,24 @@ use std::{
 use anyhow::{Context, Result};
 use itertools::Itertools;
 
-use aoc2021::util::input_lines;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct Position {
-    row: usize,
-    col: usize,
-}
+use aoc2021::{
+    matrix::{Matrix, Position},
+    util::input_lines,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct HeightMap {
-    data: Vec<u8>,
-    width: usize,
+    data: Matrix<u8>,
 }
 
 impl HeightMap {
-    fn width(&self) -> usize {
-        self.width
-    }
-
-    fn height(&self) -> usize {
-        self.data.len() / self.width()
-    }
-
-    fn get(&self, pos: &Position) -> u8 {
-        assert!(pos.row < self.height());
-        assert!(pos.col < self.width());
-
-        self.data[pos.row * self.width() + pos.col]
-    }
-
-    fn all_points(&self) -> impl Iterator<Item = Position> + '_ {
-        (0..self.height()).flat_map(|row| (0..self.width()).map(move |col| Position { row, col }))
-    }
-
-    fn neighbours(&self, pos: &Position) -> impl Iterator<Item = Position> {
-        let pos = *pos;
-
-        assert!(pos.row < self.height());
-        assert!(pos.col < self.width());
-
-        let min_row = pos.row.saturating_sub(1);
-        let max_row = (pos.row + 1).min(self.height() - 1);
-
-        let up_down = (min_row..=max_row)
-            .filter(move |row| *row != pos.row)
-            .map(move |row| Position { row, col: pos.col });
-
-        let min_col = pos.col.saturating_sub(1);
-        let max_col = (pos.col + 1).min(self.width() - 1);
-
-        let left_right = (min_col..=max_col)
-            .filter(move |col| *col != pos.col)
-            .map(move |col| Position { col, row: pos.row });
-
-        up_down.chain(left_right)
-    }
-
     fn gradient_direction(&self, pos: &Position) -> Position {
         let neighbour = self
+            .data
             .neighbours(pos)
-            .min_by_key(|neighbour| self.get(neighbour))
+            .min_by_key(|neighbour| self.data.get(neighbour))
             .unwrap_or(*pos);
-        if self.get(&neighbour) <= self.get(pos) {
+        if self.data.get(&neighbour) <= self.data.get(pos) {
             neighbour
         } else {
             *pos
@@ -76,21 +31,21 @@ impl HeightMap {
     }
 
     fn low_points(&self) -> impl Iterator<Item = Position> + '_ {
-        self.all_points().filter(|point| self.is_low_point(point))
+        self.data
+            .all_points()
+            .filter(|point| self.is_low_point(point))
     }
 
     fn is_low_point(&self, pos: &Position) -> bool {
-        assert!(pos.row < self.height());
-        assert!(pos.col < self.width());
-
-        self.neighbours(pos)
-            .all(|neighbour| self.get(&neighbour) > self.get(pos))
+        self.data
+            .neighbours(pos)
+            .all(|neighbour| self.data.get(&neighbour) > self.data.get(pos))
     }
 
     fn risk_level(&self, pos: &Position) -> u16 {
         assert!(self.is_low_point(pos));
 
-        let height: u16 = self.get(pos).into();
+        let height: u16 = (*self.data.get(pos)).into();
         height + 1
     }
 
@@ -103,8 +58,8 @@ impl HeightMap {
 
         let mut cache = HashMap::new();
 
-        for point in self.all_points() {
-            if self.get(&point) == 9 {
+        for point in self.data.all_points() {
+            if *self.data.get(&point) == 9 {
                 continue;
             }
 
@@ -165,7 +120,9 @@ fn parse_input() -> Result<HeightMap> {
         data.extend(parse_line(&line));
     }
 
-    Ok(HeightMap { data, width })
+    Ok(HeightMap {
+        data: Matrix::new(data, width),
+    })
 }
 
 fn parse_line(line: &str) -> impl Iterator<Item = u8> + '_ {
