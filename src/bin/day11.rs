@@ -53,6 +53,18 @@ impl Grid {
 
         (new_grid, total_flashes)
     }
+
+    fn sync_point(&self) -> usize {
+        let mut current = self.clone();
+        for step in 1usize.. {
+            let (next, flashes) = current.step();
+            if flashes == GRID_ROWS * GRID_COLS {
+                return step;
+            }
+            current = next;
+        }
+        panic!("Solution not found")
+    }
 }
 
 impl Display for Grid {
@@ -75,6 +87,9 @@ fn main() -> Result<()> {
         (next, acc.1 + flashes)
     });
     dbg!(total_flashes);
+
+    let sync_point = grid.sync_point();
+    dbg!(sync_point);
 
     Ok(())
 }
