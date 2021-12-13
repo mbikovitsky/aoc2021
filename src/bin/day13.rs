@@ -23,6 +23,12 @@ fn main() -> Result<()> {
     let dots_after_one_fold = after_one_fold.len();
     dbg!(dots_after_one_fold);
 
+    let mut paper = instructions.paper;
+    for instruction in instructions.folds {
+        paper = fold(&paper, instruction);
+    }
+    print_paper(&paper);
+
     Ok(())
 }
 
@@ -53,6 +59,23 @@ fn fold(paper: &HashSet<(u32, u32)>, instruction: Fold) -> HashSet<(u32, u32)> {
     }
 
     result
+}
+
+fn print_paper(paper: &HashSet<(u32, u32)>) {
+    let max_row = paper.iter().map(|dot| dot.1).max().unwrap_or(0);
+    let max_col = paper.iter().map(|dot| dot.0).max().unwrap_or(0);
+
+    for row in 0..=max_row {
+        let mut string = String::with_capacity(max_col.checked_add(1).unwrap().try_into().unwrap());
+        for col in 0..=max_col {
+            if paper.contains(&(col, row)) {
+                string.push('#');
+            } else {
+                string.push('.');
+            }
+        }
+        println!("{}", string);
+    }
 }
 
 fn parse_input() -> Result<Instructions> {
