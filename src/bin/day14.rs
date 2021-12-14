@@ -1,86 +1,109 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
 use anyhow::{bail, Context, Result};
 use itertools::Itertools;
+use num::{CheckedAdd, Unsigned};
 
 use aoc2021::util::input_lines;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Rule {
-    source: [char; 2],
-    replacement: char,
-}
 
 fn main() -> Result<()> {
     let (template, rules) = parse_input()?;
 
-    let current = replace_n(&template, &rules, 10);
-    let (most_common, least_common) = most_least_common(&current);
-    let part1 = most_common.1 - least_common.1;
+    let part1 = solve(&template, &rules, 10);
     dbg!(part1);
 
-    let current = replace_n(&template, &rules, 40);
-    let (most_common, least_common) = most_least_common(&current);
-    let part2 = most_common.1 - least_common.1;
+    let part2 = solve(&template, &rules, 40);
     dbg!(part2);
 
     Ok(())
 }
 
-fn replace_once(template: &str, rules: &[Rule]) -> String {
-    let mut result = String::new();
+fn solve(template: &str, rules: &HashMap<(char, char), char>, iterations: u32) -> u64 {
+    let counters = expand_template(&template, &rules, iterations);
 
-    let mut previous_replaced = false;
-    for (a, b) in template.chars().tuple_windows() {
-        if let Some(rule) = rules.iter().find(|rule| rule.source == [a, b]) {
-            if !previous_replaced {
-                result.push(a);
-            }
-            result.push(rule.replacement);
-            result.push(b);
-            previous_replaced = true;
-        } else {
-            previous_replaced = false;
+    let max = *counters.values().max().unwrap();
+    let min = *counters.values().min().unwrap();
+
+    return max - min;
+}
+
+fn expand_template(
+    template: &str,
+    rules: &HashMap<(char, char), char>,
+    iterations: u32,
+) -> HashMap<char, u64> {
+    let counters = expand_rules(rules, iterations);
+
+    let mut result = HashMap::new();
+
+    for (index, (a, b)) in template.chars().tuple_windows().enumerate() {
+        result = add_counter_maps(&result, counters.get(&(a, b)).unwrap());
+        if index != 0 {
+            *result.get_mut(&a).unwrap() -= 1;
         }
     }
 
     result
 }
 
-fn replace_n(template: &str, rules: &[Rule], count: usize) -> String {
-    let mut current = template.to_string();
-    for _ in 0..count {
-        current = replace_once(&current, &rules);
+fn expand_rules(
+    rules: &HashMap<(char, char), char>,
+    iterations: u32,
+) -> HashMap<(char, char), HashMap<char, u64>> {
+    let mut current_iteration: HashMap<(char, char), HashMap<char, u64>> = rules
+        .keys()
+        .copied()
+        .map(|source| {
+            (
+                source,
+                if source.0 == source.1 {
+                    HashMap::from([(source.0, 2)])
+                } else {
+                    HashMap::from([(source.0, 1), (source.1, 1)])
+                },
+            )
+        })
+        .collect();
+
+    for _ in 0..iterations {
+        let next_iteration = rules
+            .iter()
+            .map(|(&source, &inserted)| {
+                let left = current_iteration.get(&(source.0, inserted)).unwrap();
+                let right = current_iteration.get(&(inserted, source.1)).unwrap();
+
+                let mut result = add_counter_maps(left, right);
+                *result.get_mut(&inserted).unwrap() -= 1;
+
+                (source, result)
+            })
+            .collect();
+
+        current_iteration = next_iteration;
     }
-    current
+
+    current_iteration
 }
 
-fn most_least_common(string: &str) -> ((char, usize), (char, usize)) {
-    let occurrences = count_occurrences(string);
-    let most_common = occurrences.iter().max_by_key(|(_, count)| *count).unwrap();
-    let least_common = occurrences.iter().min_by_key(|(_, count)| *count).unwrap();
+fn add_counter_maps<K, V>(first: &HashMap<K, V>, second: &HashMap<K, V>) -> HashMap<K, V>
+where
+    K: Eq + Hash + Clone,
+    V: Unsigned + CheckedAdd + Copy,
+{
+    let mut result = first.clone();
 
-    (
-        (*most_common.0, *most_common.1),
-        (*least_common.0, *least_common.1),
-    )
-}
-
-fn count_occurrences(string: &str) -> HashMap<char, usize> {
-    let mut result = HashMap::new();
-
-    for char in string.chars() {
-        if let Some(count) = result.get_mut(&char) {
-            *count += 1;
+    for (key, second_counter) in second.iter() {
+        if let Some(first_counter) = result.get_mut(key) {
+            *first_counter = first_counter.checked_add(second_counter).unwrap();
         } else {
-            result.insert(char, 1);
+            result.insert(key.clone(), *second_counter);
         }
     }
 
-    return result;
+    result
 }
 
-fn parse_input() -> Result<(String, Vec<Rule>)> {
+fn parse_input() -> Result<(String, HashMap<(char, char), char>)> {
     let mut lines = input_lines()?;
 
     let template = lines.next().context("No template")??;
@@ -89,31 +112,25 @@ fn parse_input() -> Result<(String, Vec<Rule>)> {
         bail!("Missing empty line");
     }
 
-    let mut rules = vec![];
+    let mut rules = HashMap::new();
     for line in lines {
         let line = line?;
 
         let parts = line.split_once("->").context("Invalid rule format")?;
 
         let source = parts.0.trim();
-        if source.chars().count() != 2 {
-            bail!("Invalid number of source characters");
-        }
-        let source = [
-            source.chars().nth(0).unwrap(),
-            source.chars().nth(1).unwrap(),
-        ];
+        let source = source
+            .chars()
+            .collect_tuple()
+            .context("Invalid number of source characters")?;
 
-        let replacement = parts.1.trim();
-        if replacement.chars().count() != 1 {
+        let inserted = parts.1.trim();
+        if inserted.chars().count() != 1 {
             bail!("Invalid number of replacement characters");
         }
-        let replacement = replacement.chars().nth(0).unwrap();
+        let inserted = inserted.chars().nth(0).unwrap();
 
-        rules.push(Rule {
-            source,
-            replacement,
-        })
+        rules.insert(source, inserted);
     }
 
     Ok((template, rules))
