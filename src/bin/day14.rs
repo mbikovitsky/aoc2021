@@ -14,15 +14,15 @@ struct Rule {
 fn main() -> Result<()> {
     let (template, rules) = parse_input()?;
 
-    let mut current = template.clone();
-    for _ in 0..10 {
-        current = replace_once(&current, &rules);
-    }
-    let occurrences = count_occurrences(&current);
-    let most_common = occurrences.iter().max_by_key(|(_, count)| *count).unwrap();
-    let least_common = occurrences.iter().min_by_key(|(_, count)| *count).unwrap();
-    let part1 = *most_common.1 - least_common.1;
+    let current = replace_n(&template, &rules, 10);
+    let (most_common, least_common) = most_least_common(&current);
+    let part1 = most_common.1 - least_common.1;
     dbg!(part1);
+
+    let current = replace_n(&template, &rules, 40);
+    let (most_common, least_common) = most_least_common(&current);
+    let part2 = most_common.1 - least_common.1;
+    dbg!(part2);
 
     Ok(())
 }
@@ -45,6 +45,25 @@ fn replace_once(template: &str, rules: &[Rule]) -> String {
     }
 
     result
+}
+
+fn replace_n(template: &str, rules: &[Rule], count: usize) -> String {
+    let mut current = template.to_string();
+    for _ in 0..count {
+        current = replace_once(&current, &rules);
+    }
+    current
+}
+
+fn most_least_common(string: &str) -> ((char, usize), (char, usize)) {
+    let occurrences = count_occurrences(string);
+    let most_common = occurrences.iter().max_by_key(|(_, count)| *count).unwrap();
+    let least_common = occurrences.iter().min_by_key(|(_, count)| *count).unwrap();
+
+    (
+        (*most_common.0, *most_common.1),
+        (*least_common.0, *least_common.1),
+    )
 }
 
 fn count_occurrences(string: &str) -> HashMap<char, usize> {
