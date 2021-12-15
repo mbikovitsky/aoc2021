@@ -10,53 +10,103 @@ use aoc2021::{
 fn main() -> Result<()> {
     let grid = parse_input()?;
 
-    let lowest_risk = lowest_risk_path_dijkstra(&grid);
+    let lowest_risk = lowest_risk_astar(&grid, 1);
     dbg!(lowest_risk);
+
+    let lowest_risk2 = lowest_risk_astar(&grid, 5);
+    dbg!(lowest_risk2);
 
     Ok(())
 }
 
-fn lowest_risk_path_dijkstra(grid: &Matrix<u8>) -> u64 {
+fn lowest_risk_astar(grid: &Matrix<u8>, factor: usize) -> u64 {
+    // https://en.wikipedia.org/w/index.php?title=A*_search_algorithm&oldid=1060160033#Pseudocode
+
     let source = Position { row: 0, col: 0 };
     let target = Position {
-        row: grid.rows() - 1,
-        col: grid.cols() - 1,
+        row: grid.rows() * factor - 1,
+        col: grid.cols() * factor - 1,
     };
 
-    let mut vertices: HashSet<Position> = grid.all_points().collect();
-    let mut distances = HashMap::from([(source, 0u64)]);
-    let mut previous = HashMap::new();
+    let risk = |position: &Position| {
+        let original = Position {
+            row: position.row % grid.rows(),
+            col: position.col % grid.cols(),
+        };
+        let original_risk = *grid.get(&original);
 
-    while !vertices.is_empty() {
-        let current = *vertices
-            .iter()
-            .min_by_key(|vertex| *distances.get(vertex).unwrap_or(&u64::MAX))
+        let distance = (position.row - original.row)
+            .checked_add(position.col - original.col)
             .unwrap();
-        vertices.remove(&current);
+
+        let risk = ((original_risk as usize + distance) % 9) as u8;
+        let risk = if risk == 0 { 9 } else { risk };
+
+        risk
+    };
+
+    let heuristic = |position: &Position| -> u64 {
+        ((target.row - position.row) + (target.col - position.col))
+            .try_into()
+            .unwrap()
+    };
+
+    let neighbours = |pos: Position| {
+        let min_row = pos.row.saturating_sub(1);
+        let max_row = (pos.row + 1).min(target.row);
+
+        let up_down = (min_row..=max_row)
+            .filter(move |row| *row != pos.row)
+            .map(move |row| Position { row, col: pos.col });
+
+        let min_col = pos.col.saturating_sub(1);
+        let max_col = (pos.col + 1).min(target.col);
+
+        let left_right = (min_col..=max_col)
+            .filter(move |col| *col != pos.col)
+            .map(move |col| Position { col, row: pos.row });
+
+        up_down.chain(left_right)
+    };
+
+    let mut open_set = HashSet::from([source]);
+    let mut came_from = HashMap::new();
+    let mut g_score = HashMap::from([(source, 0u64)]);
+    let mut f_score = HashMap::from([(source, heuristic(&source))]);
+
+    while !open_set.is_empty() {
+        let current = *open_set
+            .iter()
+            .min_by_key(|node| f_score.get(node).unwrap_or(&u64::MAX))
+            .unwrap();
 
         if current == target {
-            break;
+            let mut current = current;
+
+            let mut total_cost: u64 = risk(&current).into();
+            while let Some(prev) = came_from.get(&current) {
+                current = *prev;
+                total_cost += risk(&current) as u64;
+            }
+            return total_cost - risk(&source) as u64;
         }
 
-        for neighbour in grid.neighbours(&current) {
-            let neighbour_cost: u64 = (*grid.get(&neighbour)).into();
-            let alt = *distances.get(&current).unwrap() + neighbour_cost;
-            if alt < *distances.get(&neighbour).unwrap_or(&u64::MAX) {
-                distances.insert(neighbour, alt);
-                previous.insert(neighbour, current);
+        open_set.remove(&current);
+
+        for neighbour in neighbours(current) {
+            let tentative_gscore = *g_score.get(&current).unwrap() + risk(&neighbour) as u64;
+            if tentative_gscore < *g_score.get(&neighbour).unwrap_or(&u64::MAX) {
+                came_from.insert(neighbour, current);
+                g_score.insert(neighbour, tentative_gscore);
+                f_score.insert(neighbour, tentative_gscore + heuristic(&neighbour));
+                if !open_set.contains(&neighbour) {
+                    open_set.insert(neighbour);
+                }
             }
         }
     }
 
-    let mut total_cost = 0u64;
-    let mut current = target;
-    while let Some(prev) = previous.get(&current) {
-        let cost: u64 = (*grid.get(&current)).into();
-        total_cost += cost;
-        current = *prev;
-    }
-
-    total_cost
+    u64::MAX
 }
 
 fn parse_input() -> Result<Matrix<u8>> {
