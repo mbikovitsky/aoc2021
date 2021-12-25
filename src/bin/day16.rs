@@ -15,7 +15,13 @@ struct Packet {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum PacketData {
     Literal(u64),
-    Operator(Vec<Packet>),
+    Sum(Vec<Packet>),
+    Product(Vec<Packet>),
+    Minimum(Vec<Packet>),
+    Maximum(Vec<Packet>),
+    GreaterThan((Box<Packet>, Box<Packet>)),
+    LessThan((Box<Packet>, Box<Packet>)),
+    EqualTo((Box<Packet>, Box<Packet>)),
 }
 
 impl Packet {
@@ -43,40 +49,118 @@ impl Packet {
                 }
                 (PacketData::Literal(literal), len)
             }
+            0 => {
+                let (packets, len) = Self::parse_array(&data.slice(6..data.len()));
+                (PacketData::Sum(packets), len)
+            }
+            1 => {
+                let (packets, len) = Self::parse_array(&data.slice(6..data.len()));
+                (PacketData::Product(packets), len)
+            }
+            2 => {
+                let (packets, len) = Self::parse_array(&data.slice(6..data.len()));
+                (PacketData::Minimum(packets), len)
+            }
+            3 => {
+                let (packets, len) = Self::parse_array(&data.slice(6..data.len()));
+                (PacketData::Maximum(packets), len)
+            }
+            5 => {
+                let (mut packets, len) = Self::parse_array(&data.slice(6..data.len()));
+
+                assert_eq!(packets.len(), 2);
+                let b = packets.pop().unwrap();
+                let a = packets.pop().unwrap();
+
+                (PacketData::GreaterThan((Box::new(a), Box::new(b))), len)
+            }
+            6 => {
+                let (mut packets, len) = Self::parse_array(&data.slice(6..data.len()));
+
+                assert_eq!(packets.len(), 2);
+                let b = packets.pop().unwrap();
+                let a = packets.pop().unwrap();
+
+                (PacketData::LessThan((Box::new(a), Box::new(b))), len)
+            }
+            7 => {
+                let (mut packets, len) = Self::parse_array(&data.slice(6..data.len()));
+
+                assert_eq!(packets.len(), 2);
+                let b = packets.pop().unwrap();
+                let a = packets.pop().unwrap();
+
+                (PacketData::EqualTo((Box::new(a), Box::new(b))), len)
+            }
             _ => {
-                let length_type_id = data.get(6);
-
-                if length_type_id {
-                    let num_packets: u64 = data.slice(7..18).try_into().unwrap();
-                    let num_packets: usize = num_packets.try_into().unwrap();
-
-                    let mut packets = Vec::with_capacity(num_packets);
-                    let mut len = 0;
-                    for _ in 0..num_packets {
-                        let (packet, packet_len) = Self::parse(&data.slice(18 + len..data.len()));
-                        packets.push(packet);
-                        len += packet_len;
-                    }
-
-                    (PacketData::Operator(packets), len + 12)
-                } else {
-                    let len: u64 = data.slice(7..22).try_into().unwrap();
-                    let len: usize = len.try_into().unwrap();
-
-                    let mut packets = Vec::new();
-                    let mut read = 0;
-                    while read < len {
-                        let (packet, packet_len) = Self::parse(&data.slice(22 + read..22 + len));
-                        packets.push(packet);
-                        read += packet_len;
-                    }
-
-                    (PacketData::Operator(packets), len + 16)
-                }
+                panic!("Unexpected packet type");
             }
         };
 
         (Self { version, data }, len + 6)
+    }
+
+    fn parse_array<'a>(data: &BitMapRef<'a>) -> (Vec<Packet>, usize) {
+        let length_type_id = data.get(0);
+
+        if length_type_id {
+            let num_packets: u64 = data.slice(1..12).try_into().unwrap();
+            let num_packets: usize = num_packets.try_into().unwrap();
+
+            let mut packets = Vec::with_capacity(num_packets);
+            let mut len = 0;
+            for _ in 0..num_packets {
+                let (packet, packet_len) = Self::parse(&data.slice(12 + len..data.len()));
+                packets.push(packet);
+                len += packet_len;
+            }
+
+            (packets, len + 12)
+        } else {
+            let len: u64 = data.slice(1..16).try_into().unwrap();
+            let len: usize = len.try_into().unwrap();
+
+            let mut packets = Vec::new();
+            let mut read = 0;
+            while read < len {
+                let (packet, packet_len) = Self::parse(&data.slice(16 + read..16 + len));
+                packets.push(packet);
+                read += packet_len;
+            }
+
+            (packets, len + 16)
+        }
+    }
+
+    fn eval(&self) -> u64 {
+        match &self.data {
+            PacketData::Literal(literal) => *literal,
+            PacketData::Sum(packets) => packets.iter().map(Self::eval).sum(),
+            PacketData::Product(packets) => packets.iter().map(Self::eval).product(),
+            PacketData::Minimum(packets) => packets.iter().map(Self::eval).min().unwrap(),
+            PacketData::Maximum(packets) => packets.iter().map(Self::eval).max().unwrap(),
+            PacketData::GreaterThan((a, b)) => {
+                if a.eval() > b.eval() {
+                    1
+                } else {
+                    0
+                }
+            }
+            PacketData::LessThan((a, b)) => {
+                if a.eval() < b.eval() {
+                    1
+                } else {
+                    0
+                }
+            }
+            PacketData::EqualTo((a, b)) => {
+                if a.eval() == b.eval() {
+                    1
+                } else {
+                    0
+                }
+            }
+        }
     }
 }
 
@@ -101,17 +185,27 @@ fn main() -> Result<()> {
     let version_sum = sum_all_version_numbers(&packet);
     dbg!(version_sum);
 
+    let value = packet.eval();
+    dbg!(value);
+
     Ok(())
 }
 
 fn sum_all_version_numbers(packet: &Packet) -> u32 {
     let mut sum = packet.version.into();
 
-    if let PacketData::Operator(packets) = &packet.data {
-        for packet in packets {
-            sum += sum_all_version_numbers(packet);
+    sum += match &packet.data {
+        PacketData::Literal(_) => 0,
+        PacketData::Sum(packets) => packets.iter().map(sum_all_version_numbers).sum(),
+        PacketData::Product(packets) => packets.iter().map(sum_all_version_numbers).sum(),
+        PacketData::Minimum(packets) => packets.iter().map(sum_all_version_numbers).sum(),
+        PacketData::Maximum(packets) => packets.iter().map(sum_all_version_numbers).sum(),
+        PacketData::GreaterThan((a, b)) => {
+            sum_all_version_numbers(&*a) + sum_all_version_numbers(&*b)
         }
-    }
+        PacketData::LessThan((a, b)) => sum_all_version_numbers(&*a) + sum_all_version_numbers(&*b),
+        PacketData::EqualTo((a, b)) => sum_all_version_numbers(&*a) + sum_all_version_numbers(&*b),
+    };
 
     sum
 }
