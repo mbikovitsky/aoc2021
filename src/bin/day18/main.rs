@@ -2,6 +2,7 @@ mod ast;
 lalrpop_mod!(snailfish, "/bin/day18/snailfish.rs");
 
 use anyhow::Result;
+use itertools::Itertools;
 use lalrpop_util::lalrpop_mod;
 
 use aoc2021::util::input_lines;
@@ -15,6 +16,20 @@ fn main() -> Result<()> {
     let sum = numbers.iter().cloned().reduce(|a, b| a + b).unwrap();
     let magnitude = sum.magnitude();
     dbg!(magnitude);
+
+    let max_magnitude = numbers
+        .iter()
+        .permutations(2)
+        .map(|pair| {
+            pair.into_iter()
+                .cloned()
+                .reduce(|a, b| a + b)
+                .unwrap()
+                .magnitude()
+        })
+        .max()
+        .unwrap();
+    dbg!(max_magnitude);
 
     Ok(())
 }
