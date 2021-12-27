@@ -1,0 +1,16 @@
+use std::str::FromStr;
+
+use crate::ast::{Element, SnailfishNum};
+
+grammar;
+
+pub SnailfishNum: SnailfishNum = {
+    "[" <a:Element> "," <b:Element> "]" => SnailfishNum::new(a, b),
+};
+
+Element: Box<Element> = {
+    Number => Box::new(Element::Number(<>)),
+    "[" <a:Element> "," <b:Element> "]" => Box::new(Element::Pair(a, b)),
+}
+
+Number: u32 = r"[0-9]+" => u32::from_str(<>).unwrap();

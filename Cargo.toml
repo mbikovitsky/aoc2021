@@ -2,8 +2,12 @@
 name = "aoc2021"
 version = "0.1.0"
 edition = "2021"
+resolver = "1"  # https://github.com/lalrpop/lalrpop/issues/616#issuecomment-985728867
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+lalrpop = "0.19.6"
 
 [dependencies]
 anyhow = "1.0"
@@ -11,3 +15,5 @@ itertools = "0.10.3"
 num = "0.4"
 regex = "1"
 lazy_static = "1.4.0"
+lalrpop-util = "0.19.6"
+petgraph = "0.6.0"
