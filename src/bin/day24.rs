@@ -39,17 +39,21 @@ enum InstructionBlockType {
 fn main() -> Result<()> {
     let instructions = parse_input()?;
 
-    let largest_model_number = find_largest_model_number(&instructions).unwrap();
+    let largest_model_number = find_model_number(&instructions, true).unwrap();
     dbg!(largest_model_number);
+
+    let smallest_model_number = find_model_number(&instructions, false).unwrap();
+    dbg!(smallest_model_number);
 
     Ok(())
 }
 
-fn find_largest_model_number(instructions: &[Instruction]) -> Option<u64> {
+fn find_model_number(instructions: &[Instruction], largest: bool) -> Option<u64> {
     fn backtrack(
         digits: &mut [i64; 14],
         index: usize,
         instructions: &[Instruction],
+        largest: bool,
     ) -> Option<[i64; 14]> {
         if index == digits.len() {
             let variables = execute_alu_program(instructions, &*digits).unwrap();
@@ -65,12 +69,19 @@ fn find_largest_model_number(instructions: &[Instruction]) -> Option<u64> {
 
         match block_type {
             InstructionBlockType::Type1(_) => {
-                for digit in (1..=9).rev() {
+                let start = if largest { 9 } else { 1 };
+                let end = if largest { 0 } else { 10 };
+                let step = if largest { -1 } else { 1 };
+
+                let mut digit = start;
+                while digit != end {
                     digits[index] = digit;
-                    if let Some(result) = backtrack(digits, index + 1, instructions) {
+                    if let Some(result) = backtrack(digits, index + 1, instructions, largest) {
                         return Some(result);
                     }
+                    digit += step;
                 }
+
                 None
             }
             InstructionBlockType::Type2(add1, _) => {
@@ -79,7 +90,7 @@ fn find_largest_model_number(instructions: &[Instruction]) -> Option<u64> {
                 let w = variables[Variable::Z as usize] % 26 + add1;
                 if 1 <= w && w <= 9 {
                     digits[index] = w;
-                    backtrack(digits, index + 1, instructions)
+                    backtrack(digits, index + 1, instructions, largest)
                 } else {
                     None
                 }
@@ -87,7 +98,7 @@ fn find_largest_model_number(instructions: &[Instruction]) -> Option<u64> {
         }
     }
 
-    backtrack(&mut [0; 14], 0, instructions).map(|digits| {
+    backtrack(&mut [0; 14], 0, instructions, largest).map(|digits| {
         let mut result = 0;
         for digit in digits {
             result *= 10;
