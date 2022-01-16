@@ -126,6 +126,7 @@ fn classify_instruction_block(instructions: &[Instruction]) -> InstructionBlockT
     } else {
         panic!("Fifteenth instruction is not add y <imm>")
     };
+    assert!(add2 >= 0);
 
     assert!(div == 26 || div == 1);
     if div == 26 {
