@@ -89,6 +89,7 @@ const WINNING_SCORE: usize = 21;
 const POSITIONS: usize = 10;
 const MAX_TURNS_TO_WINNING_SCORE: usize = 14;
 
+#[allow(non_snake_case)]
 fn generate_quantum_score_lookup_table() -> Array5<u64> {
     let mut table = Array5::zeros((
         WINNING_SCORE,
